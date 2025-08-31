@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<info xmlns="http://nextcloud.org/ns">
+  <id>dolibarrlink</id>
+  <name>Dolibarr Link</name>
+  <summary>Prisilno otvaranje linkova u istom tabu</summary>
+  <description>Patchira odabrane linkove da se otvore u istom tabu na temelju konfiguriranih pravila.</description>
+  <version>1.0.0</version>
+  <licence>agpl</licence>
+  <author>8Core Association</author>
+  <namespace>DolibarrLink</namespace>
+  <category>customization</category>
+  <dependencies>
+    <nextcloud min-version="25" max-version="30"/>
+  </dependencies>
+  <settings>
+    <admin>OCA\DolibarrLink\Settings\Admin</admin>
+    <admin-section>OCA\DolibarrLink\Settings\AdminSection</admin-section>
+  </settings>
+</info>
