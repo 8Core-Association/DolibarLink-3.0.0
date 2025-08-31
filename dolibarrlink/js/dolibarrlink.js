@@ -7,7 +7,8 @@
     window.DolibarrLinkStatus = {
         lastScan: null,
         patchedCount: 0,
-        enabled: true
+        enabled: true,
+        patchedLinks: []
     };
     
     let rules = [
@@ -69,6 +70,17 @@
         
         console.log('DolibarrLink: Patching link:', link.href || link.textContent);
         
+        // Store link info for admin interface
+        const linkInfo = {
+            href: link.getAttribute('href') || '',
+            text: link.textContent.trim() || 'Bez teksta',
+            title: link.getAttribute('title') || '',
+            timestamp: Date.now(),
+            element: link
+        };
+        
+        window.DolibarrLinkStatus.patchedLinks.push(linkInfo);
+        
         // Remove target="_blank" and similar
         link.removeAttribute('target');
         link.setAttribute('target', '_self');
@@ -90,6 +102,43 @@
         link.dataset.dolibarrPatched = '1';
     }
     
+    // Function to unpatch a specific link
+    window.unpatchLink = function(index) {
+        if (window.DolibarrLinkStatus.patchedLinks[index]) {
+            const linkInfo = window.DolibarrLinkStatus.patchedLinks[index];
+            const element = linkInfo.element;
+            
+            if (element && element.parentNode) {
+                // Remove our modifications
+                element.removeAttribute('target');
+                element.dataset.dolibarrPatched = '0';
+                
+                // Remove from list
+                window.DolibarrLinkStatus.patchedLinks.splice(index, 1);
+                window.DolibarrLinkStatus.patchedCount = window.DolibarrLinkStatus.patchedLinks.length;
+                
+                console.log('DolibarrLink: Unpatched link:', linkInfo.href);
+                return true;
+            }
+        }
+        return false;
+    };
+    
+    // Function to clear all patched links
+    window.clearAllPatchedLinks = function() {
+        window.DolibarrLinkStatus.patchedLinks.forEach((linkInfo, index) => {
+            if (linkInfo.element && linkInfo.element.parentNode) {
+                linkInfo.element.removeAttribute('target');
+                linkInfo.element.dataset.dolibarrPatched = '0';
+            }
+        });
+        
+        window.DolibarrLinkStatus.patchedLinks = [];
+        window.DolibarrLinkStatus.patchedCount = 0;
+        
+        console.log('DolibarrLink: Cleared all patched links');
+    };
+    
     function scanAndPatchLinks() {
         const links = document.querySelectorAll('a[href]');
         console.log('DolibarrLink: Scanning', links.length, 'links');
@@ -104,7 +153,7 @@
         
         // Update status
         window.DolibarrLinkStatus.lastScan = Date.now();
-        window.DolibarrLinkStatus.patchedCount = patchedCount;
+        window.DolibarrLinkStatus.patchedCount = window.DolibarrLinkStatus.patchedLinks.length;
         
         if (patchedCount > 0) {
             console.log('DolibarrLink: Patched', patchedCount, 'links');

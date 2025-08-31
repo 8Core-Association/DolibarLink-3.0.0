@@ -13,6 +13,7 @@
         document.getElementById('add-rule').addEventListener('click', addRule);
         document.getElementById('save-settings').addEventListener('click', saveSettings);
         document.getElementById('test-rules').addEventListener('click', testRules);
+        document.getElementById('clear-patched').addEventListener('click', clearPatchedLinks);
         
         // Update status periodically
         updateStatus();
@@ -175,6 +176,7 @@
         const scriptStatus = document.getElementById('script-status');
         const lastScan = document.getElementById('last-scan');
         const linksPatched = document.getElementById('links-patched');
+        const patchedLinksList = document.getElementById('patched-links-list');
         
         // Check if main script is loaded
         if (window.DolibarrLinkStatus) {
@@ -188,9 +190,68 @@
             if (window.DolibarrLinkStatus.patchedCount !== undefined) {
                 linksPatched.textContent = window.DolibarrLinkStatus.patchedCount;
             }
+            
+            updatePatchedLinksList();
         } else {
             scriptStatus.textContent = 'Neaktivan';
             scriptStatus.className = 'inactive';
+        }
+    }
+    
+    function updatePatchedLinksList() {
+        const container = document.getElementById('patched-links-list');
+        
+        if (!window.DolibarrLinkStatus || !window.DolibarrLinkStatus.patchedLinks) {
+            container.innerHTML = '<p class="hint">Nema patchanih linkova</p>';
+            return;
+        }
+        
+        const links = window.DolibarrLinkStatus.patchedLinks;
+        
+        if (links.length === 0) {
+            container.innerHTML = '<p class="hint">Nema patchanih linkova</p>';
+            return;
+        }
+        
+        let html = '<div class="patched-links-header"><strong>Patchani linkovi:</strong></div>';
+        
+        links.forEach((linkInfo, index) => {
+            const timeStr = new Date(linkInfo.timestamp).toLocaleTimeString();
+            html += `
+                <div class="patched-link-item" data-index="${index}">
+                    <div class="link-info">
+                        <div class="link-text">${escapeHtml(linkInfo.text)}</div>
+                        <div class="link-url">${escapeHtml(linkInfo.href)}</div>
+                        <div class="link-time">Patchan u: ${timeStr}</div>
+                    </div>
+                    <button class="delete-patched-link" onclick="unpatchSingleLink(${index})">Ukloni patch</button>
+                </div>
+            `;
+        });
+        
+        container.innerHTML = html;
+    }
+    
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    window.unpatchSingleLink = function(index) {
+        if (window.unpatchLink && window.unpatchLink(index)) {
+            updatePatchedLinksList();
+            updateStatus();
+        }
+    };
+    
+    function clearPatchedLinks() {
+        if (window.clearAllPatchedLinks) {
+            if (confirm('Jeste li sigurni da želite ukloniti patch sa svih linkova?')) {
+                window.clearAllPatchedLinks();
+                updatePatchedLinksList();
+                updateStatus();
+            }
         }
     }
 })();
