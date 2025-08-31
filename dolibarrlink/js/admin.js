@@ -140,43 +140,18 @@
     }
     
     function testRules() {
-        const links = document.querySelectorAll('a[href]');
-        let matchCount = 0;
-        
-        links.forEach(link => {
-            const matches = currentRules.some(rule => {
-                switch (rule.type) {
-                    case 'title':
-                        const title = link.getAttribute('title') || '';
-                        return title.toLowerCase().includes(rule.value.toLowerCase());
-                    case 'hrefContains':
-                        const href = link.getAttribute('href') || '';
-                        return href.toLowerCase().includes(rule.value.toLowerCase());
-                    case 'textContent':
-                        const text = link.textContent || '';
-                        return text.toLowerCase().includes(rule.value.toLowerCase());
-                    default:
-                        return false;
-                }
-            });
-            
-            if (matches) {
-                matchCount++;
-                link.style.outline = '2px solid red';
-                setTimeout(() => {
-                    link.style.outline = '';
-                }, 3000);
-            }
-        });
-        
-        alert(`Pronađeno je ${matchCount} poklapajućih linkova na ovoj stranici. Označeni su crveno na 3 sekunde.`);
+        if (window.testRulesOnly) {
+            const result = window.testRulesOnly();
+            alert(`Pronađeno je ${result.count} poklapajućih linkova na ovoj stranici. Označeni su crveno na 3 sekunde.`);
+        } else {
+            alert('Glavna skripta nije učitana. Molimo osvježite stranicu.');
+        }
     }
     
     function updateStatus() {
         const scriptStatus = document.getElementById('script-status');
         const lastScan = document.getElementById('last-scan');
         const linksPatched = document.getElementById('links-patched');
-        const patchedLinksList = document.getElementById('patched-links-list');
         
         // Check if main script is loaded
         if (window.DolibarrLinkStatus) {
@@ -192,9 +167,69 @@
             }
             
             updatePatchedLinksList();
+            
+            updatePatchedLinksList();
         } else {
             scriptStatus.textContent = 'Neaktivan';
             scriptStatus.className = 'inactive';
+            document.getElementById('patched-links-list').innerHTML = '<p class="hint">Glavna skripta nije učitana</p>';
+        }
+    }
+    
+    function updatePatchedLinksList() {
+        const container = document.getElementById('patched-links-list');
+        
+        if (!window.DolibarrLinkStatus || !window.DolibarrLinkStatus.patchedLinks) {
+            container.innerHTML = '<p class="hint">Nema patchanih linkova</p>';
+            return;
+        }
+        
+        const links = window.DolibarrLinkStatus.patchedLinks;
+        
+        if (links.length === 0) {
+            container.innerHTML = '<p class="hint">Nema patchanih linkova</p>';
+            return;
+        }
+        
+        let html = '<div class="patched-links-header"><strong>Patchani linkovi:</strong></div>';
+        
+        links.forEach((linkInfo, index) => {
+            const timeStr = new Date(linkInfo.timestamp).toLocaleTimeString();
+            html += `
+                <div class="patched-link-item" data-index="${index}">
+                    <div class="link-info">
+                        <div class="link-text">${escapeHtml(linkInfo.text)}</div>
+                        <div class="link-url">${escapeHtml(linkInfo.href)}</div>
+                        <div class="link-time">Patchan u: ${timeStr}</div>
+                    </div>
+                    <button class="delete-patched-link" onclick="unpatchSingleLink(${index})">Ukloni patch</button>
+                </div>
+            `;
+        });
+        
+        container.innerHTML = html;
+    }
+    
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    window.unpatchSingleLink = function(index) {
+        if (window.unpatchLink && window.unpatchLink(index)) {
+            updatePatchedLinksList();
+            updateStatus();
+        }
+    };
+    
+    function clearPatchedLinks() {
+        if (window.clearAllPatchedLinks) {
+            if (confirm('Jeste li sigurni da želite ukloniti patch sa svih linkova?')) {
+                window.clearAllPatchedLinks();
+                updatePatchedLinksList();
+                updateStatus();
+            }
         }
     }
     

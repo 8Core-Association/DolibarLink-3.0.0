@@ -29,6 +29,8 @@
                         rules = JSON.parse(data.rules);
                         window.DolibarrLinkStatus.enabled = data.enabled;
                         console.log('DolibarrLink: Loaded', rules.length, 'rules from server');
+                        // Re-scan after loading new rules
+                        scanAndPatchLinks();
                     } catch (e) {
                         console.error('DolibarrLink: Error parsing rules:', e);
                     }
@@ -36,6 +38,7 @@
             })
             .catch(error => {
                 console.log('DolibarrLink: Using default rules (server not available)');
+                scanAndPatchLinks();
             });
     }
     
@@ -65,10 +68,13 @@
     }
     
     function patchLink(link) {
-        if (!link || link.dataset.dolibarrPatched === '1') return;
-        if (!matchesRule(link)) return;
+        if (!link || link.dataset.dolibarrPatched === '1') return false;
+        if (!matchesRule(link)) return false;
         
         console.log('DolibarrLink: Patching link:', link.href || link.textContent);
+        
+        // Store original target for potential restoration
+        const originalTarget = link.getAttribute('target');
         
         // Store link info for admin interface
         const linkInfo = {
@@ -76,17 +82,18 @@
             text: link.textContent.trim() || 'Bez teksta',
             title: link.getAttribute('title') || '',
             timestamp: Date.now(),
-            element: link
+            element: link,
+            originalTarget: originalTarget
         };
         
         window.DolibarrLinkStatus.patchedLinks.push(linkInfo);
+        window.DolibarrLinkStatus.patchedCount = window.DolibarrLinkStatus.patchedLinks.length;
         
-        // Remove target="_blank" and similar
+        // Remove any target attributes that would open in new tab/window
         link.removeAttribute('target');
-        link.setAttribute('target', '_self');
         
         // Add click handler to ensure same-tab navigation
-        link.addEventListener('click', function(e) {
+        const clickHandler = function(e) {
             if (e.defaultPrevented) return;
             if (e.button !== 0) return; // Only left click
             if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return; // Allow modifier keys
@@ -94,12 +101,20 @@
             const href = link.getAttribute('href');
             if (!href || href.startsWith('#') || href.startsWith('javascript:')) return;
             
-            console.log('DolibarrLink: Navigating to:', href);
+            console.log('DolibarrLink: Forcing same-tab navigation to:', href);
             e.preventDefault();
+            e.stopPropagation();
             window.location.href = href;
-        });
+        };
         
+        link.addEventListener('click', clickHandler, true); // Use capture phase
         link.dataset.dolibarrPatched = '1';
+        link.dataset.dolibarrHandler = 'attached';
+        
+        // Store handler reference for cleanup
+        linkInfo.clickHandler = clickHandler;
+        
+        return true;
     }
     
     // Function to unpatch a specific link
@@ -109,9 +124,21 @@
             const element = linkInfo.element;
             
             if (element && element.parentNode) {
+                // Restore original target if it existed
+                if (linkInfo.originalTarget) {
+                    element.setAttribute('target', linkInfo.originalTarget);
+                } else {
+                    element.removeAttribute('target');
+                }
+                
                 // Remove our modifications
-                element.removeAttribute('target');
-                element.dataset.dolibarrPatched = '0';
+                element.removeAttribute('data-dolibarr-patched');
+                element.removeAttribute('data-dolibarr-handler');
+                
+                // Remove event listener if we stored it
+                if (linkInfo.clickHandler) {
+                    element.removeEventListener('click', linkInfo.clickHandler, true);
+                }
                 
                 // Remove from list
                 window.DolibarrLinkStatus.patchedLinks.splice(index, 1);
@@ -126,10 +153,24 @@
     
     // Function to clear all patched links
     window.clearAllPatchedLinks = function() {
-        window.DolibarrLinkStatus.patchedLinks.forEach((linkInfo, index) => {
+        const linksToUnpatch = [...window.DolibarrLinkStatus.patchedLinks];
+        
+        linksToUnpatch.forEach((linkInfo, index) => {
             if (linkInfo.element && linkInfo.element.parentNode) {
-                linkInfo.element.removeAttribute('target');
-                linkInfo.element.dataset.dolibarrPatched = '0';
+                // Restore original target
+                if (linkInfo.originalTarget) {
+                    linkInfo.element.setAttribute('target', linkInfo.originalTarget);
+                } else {
+                    linkInfo.element.removeAttribute('target');
+                }
+                
+                linkInfo.element.removeAttribute('data-dolibarr-patched');
+                linkInfo.element.removeAttribute('data-dolibarr-handler');
+                
+                // Remove event listener
+                if (linkInfo.clickHandler) {
+                    linkInfo.element.removeEventListener('click', linkInfo.clickHandler, true);
+                }
             }
         });
         
@@ -139,32 +180,63 @@
         console.log('DolibarrLink: Cleared all patched links');
     };
     
-    function scanAndPatchLinks() {
+    // Function to test rules without actually patching
+    window.testRulesOnly = function() {
         const links = document.querySelectorAll('a[href]');
-        console.log('DolibarrLink: Scanning', links.length, 'links');
+        let matchCount = 0;
+        const matchedLinks = [];
         
-        let patchedCount = 0;
         links.forEach(link => {
             if (matchesRule(link)) {
-                patchLink(link);
-                patchedCount++;
+                matchCount++;
+                matchedLinks.push({
+                    href: link.getAttribute('href') || '',
+                    text: link.textContent.trim() || 'Bez teksta',
+                    title: link.getAttribute('title') || ''
+                });
+                
+                // Visual highlight
+                link.style.outline = '2px solid red';
+                setTimeout(() => {
+                    link.style.outline = '';
+                }, 3000);
+            }
+        });
+        
+        return { count: matchCount, links: matchedLinks };
+    };
+    
+    function scanAndPatchLinks() {
+        if (!window.DolibarrLinkStatus.enabled) {
+            console.log('DolibarrLink: Feature disabled, skipping scan');
+            return;
+        }
+        
+        const links = document.querySelectorAll('a[href]:not([data-dolibarr-patched="1"])');
+        console.log('DolibarrLink: Scanning', links.length, 'unpatched links');
+        
+        let newlyPatchedCount = 0;
+        links.forEach(link => {
+            if (patchLink(link)) {
+                newlyPatchedCount++;
             }
         });
         
         // Update status
         window.DolibarrLinkStatus.lastScan = Date.now();
-        window.DolibarrLinkStatus.patchedCount = window.DolibarrLinkStatus.patchedLinks.length;
         
-        if (patchedCount > 0) {
-            console.log('DolibarrLink: Patched', patchedCount, 'links');
+        if (newlyPatchedCount > 0) {
+            console.log('DolibarrLink: Newly patched', newlyPatchedCount, 'links (total:', window.DolibarrLinkStatus.patchedCount, ')');
         }
     }
     
     // Initialize when DOM is ready
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', scanAndPatchLinks);
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(scanAndPatchLinks, 100); // Small delay to ensure everything is loaded
+        });
     } else {
-        scanAndPatchLinks();
+        setTimeout(scanAndPatchLinks, 100);
     }
     
     // Watch for dynamic content changes
@@ -185,7 +257,7 @@
             });
             
             if (shouldScan) {
-                setTimeout(scanAndPatchLinks, 100); // Small delay to let DOM settle
+                setTimeout(scanAndPatchLinks, 200); // Delay to let DOM settle
             }
         });
         

@@ -55,6 +55,19 @@ style('dolibarrlink', 'admin');
         </div>
 
         <div class="setting-row">
+            <h3>Patchani linkovi</h3>
+            <p class="hint">Popis trenutno patchanih linkova na stranici s mogućnošću uklanjanja patch-a.</p>
+            
+            <div id="patched-links-container">
+                <div id="patched-links-list">
+                    <p class="hint">Nema patchanih linkova</p>
+                </div>
+            </div>
+            
+            <button id="clear-patched" class="button">Ukloni sve patch-ove</button>
+        </div>
+
+        <div class="setting-row">
             <div class="developer-info">
                 <p><strong>Develop by:</strong> 8Core Association 2014-2025</p>
             </div>
