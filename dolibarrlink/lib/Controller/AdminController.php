@@ -51,7 +51,7 @@ class AdminController extends Controller {
     public function getSettings() {
         try {
             $rules = $this->config->getAppValue('dolibarrlink', 'rules', '[]');
-            $enabled = $this->config->getAppValue('dolibarrlink', 'enabled', '1');
+            $enabled = $this->config->getAppValue('dolibarrlink', 'feature_enabled', '1');
 
             return new JSONResponse([
                 'status' => 'success',

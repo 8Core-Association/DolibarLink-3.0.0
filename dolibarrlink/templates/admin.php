@@ -9,7 +9,7 @@ style('dolibarrlink', 'admin');
     <div class="dolibarr-settings">
         <div class="setting-row">
             <label>
-                <input type="checkbox" id="dolibarr-enabled" <?php if ($_['enabled']) p('checked'); ?>>
+                <input type="checkbox" id="dolibarr-enabled" <?php if ($_['feature_enabled']) p('checked'); ?>>
                 Omogući Dolibarr Link patchiranje
             </label>
             <p class="hint">Kada je omogućeno, linkovi koji se poklapaju s pravilima ispod bit će prisilno otvoreni u istom tabu.</p>
@@ -52,7 +52,7 @@ style('dolibarrlink', 'admin');
         // Pass PHP data to JavaScript
         window.DolibarrLinkConfig = {
             rules: <?php echo json_encode($_['rules']); ?>,
-            enabled: <?php echo json_encode($_['enabled']); ?>
+            enabled: <?php echo json_encode($_['feature_enabled']); ?>
         };
     </script>
 </div>
