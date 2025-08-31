@@ -17,7 +17,7 @@
         
         // Update status periodically
         updateStatus();
-        setInterval(updateStatus, 5000);
+        setInterval(updateStatus, 3000);
     });
     
     function loadInitialData() {
@@ -103,10 +103,6 @@
         statusSpan.textContent = 'Spremam...';
         statusSpan.className = '';
         
-        const data = new FormData();
-        data.append('rules', JSON.stringify(currentRules));
-        data.append('enabled', enabled);
-        
         fetch(OC.generateUrl('/apps/dolibarrlink/admin/save'), {
             method: 'POST',
             headers: {
@@ -140,7 +136,7 @@
     }
     
     function testRules() {
-        if (window.testRulesOnly) {
+        if (typeof window.testRulesOnly === 'function') {
             const result = window.testRulesOnly();
             alert(`Pronađeno je ${result.count} poklapajućih linkova na ovoj stranici. Označeni su crveno na 3 sekunde.`);
         } else {
@@ -165,8 +161,6 @@
             if (window.DolibarrLinkStatus.patchedCount !== undefined) {
                 linksPatched.textContent = window.DolibarrLinkStatus.patchedCount;
             }
-            
-            updatePatchedLinksList();
             
             updatePatchedLinksList();
         } else {
@@ -217,71 +211,14 @@
     }
     
     window.unpatchSingleLink = function(index) {
-        if (window.unpatchLink && window.unpatchLink(index)) {
+        if (typeof window.unpatchLink === 'function' && window.unpatchLink(index)) {
             updatePatchedLinksList();
             updateStatus();
         }
     };
     
     function clearPatchedLinks() {
-        if (window.clearAllPatchedLinks) {
-            if (confirm('Jeste li sigurni da želite ukloniti patch sa svih linkova?')) {
-                window.clearAllPatchedLinks();
-                updatePatchedLinksList();
-                updateStatus();
-            }
-        }
-    }
-    
-    function updatePatchedLinksList() {
-        const container = document.getElementById('patched-links-list');
-        
-        if (!window.DolibarrLinkStatus || !window.DolibarrLinkStatus.patchedLinks) {
-            container.innerHTML = '<p class="hint">Nema patchanih linkova</p>';
-            return;
-        }
-        
-        const links = window.DolibarrLinkStatus.patchedLinks;
-        
-        if (links.length === 0) {
-            container.innerHTML = '<p class="hint">Nema patchanih linkova</p>';
-            return;
-        }
-        
-        let html = '<div class="patched-links-header"><strong>Patchani linkovi:</strong></div>';
-        
-        links.forEach((linkInfo, index) => {
-            const timeStr = new Date(linkInfo.timestamp).toLocaleTimeString();
-            html += `
-                <div class="patched-link-item" data-index="${index}">
-                    <div class="link-info">
-                        <div class="link-text">${escapeHtml(linkInfo.text)}</div>
-                        <div class="link-url">${escapeHtml(linkInfo.href)}</div>
-                        <div class="link-time">Patchan u: ${timeStr}</div>
-                    </div>
-                    <button class="delete-patched-link" onclick="unpatchSingleLink(${index})">Ukloni patch</button>
-                </div>
-            `;
-        });
-        
-        container.innerHTML = html;
-    }
-    
-    function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-    
-    window.unpatchSingleLink = function(index) {
-        if (window.unpatchLink && window.unpatchLink(index)) {
-            updatePatchedLinksList();
-            updateStatus();
-        }
-    };
-    
-    function clearPatchedLinks() {
-        if (window.clearAllPatchedLinks) {
+        if (typeof window.clearAllPatchedLinks === 'function') {
             if (confirm('Jeste li sigurni da želite ukloniti patch sa svih linkova?')) {
                 window.clearAllPatchedLinks();
                 updatePatchedLinksList();
